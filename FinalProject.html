@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>When Do We Care?</title>
+    <style>
+        rect{
+            stroke: black;
+            fill: #C00400;
+            cursor:none;
+        }
+        
+        strong{
+            color:white;
+            font-family:sans-serif;
+            font-size:20px;
+        }
+        span{
+            color:white;
+            font-family: sans-serif;
+        }
+        body{
+            background-color: black;
+        }
+        
+        line{
+            color: white;
+        }
+        
+        circle{
+            Stroke: black;
+            fill: #1928A9;
+            cursor: pointer;
+            opacity:0.7;
+        }
+        #legend {
+            position: absolute;
+            top: 150px;
+            left: 90px;
+            width: 300px;
+            font-size: 12px;
+            text-align: left;
+        }
+        
+        #floater{
+            position: absolute;
+            top: 730px;
+            left: 200px;
+            width:500px;
+            background-color: black;
+            visibility: hidden;
+        }
+        #header{
+            position: absolute;
+            top: 50px;
+            left:300px;
+            color:white;
+            font-family:sans-serif;
+            font-size:32px
+        }
+        #subhead{
+            position:absolute;
+            top: 50px;
+            left:300px;
+            color:white;
+            font-family:sans-serif;
+            font-size:20px;
+        }
+        
+        #circFloater{
+            position: absolute;
+            top: 730px;
+            left: 200px;
+            width:500px;
+            background-color: black;
+            visibility: hidden
+        
+        
+    </style>
+    <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+    <script type="text/javascript">
+    var data;
+    var protestData;
+    
+    function getData(year){
+        draw();
+         d3.csv("Data/protests_"+year+".csv",function(d){
+            protestData=d;
+        });
+        d3.csv("Data/protestsperday_"+year+".csv",function(d){
+            sumsData = d;
+            drawCircles();
+            drawCircles();
+        })
+        
+        d3.csv("Data/"+year+"_gunsdata.csv",function(d){
+            data=d;
+            killedToday();
+         drawRectangles();
+        });
+    }
+        
+    var targetSVG;
+    var baseline; 
+        
+        
+        d3.selection.prototype.moveToBack = function() {  
+        return this.each(function() { 
+            var firstChild = this.parentNode.firstChild; 
+            if (firstChild) { 
+                this.parentNode.insertBefore(this, firstChild); 
+            } 
+        });
+        }
+        
+        
+        function killedToday() {
+            for(var i = 0; i<data.length; i++){
+                if(i == 0){
+                    data[i]["soFar"]= +data[i]["Num Killed"];
+                }
+                else if(data[i]["Date Num"]==data[i-1]["Date Num"]){
+                    data[i]["soFar"] = +data[i]["Num Killed"] + data[i-1]["soFar"];
+                }
+                else if(data[i]["Date Num"]==data[i+1]["Date Num"]){
+                    data[i]["soFar"] = +data[i]["Num Killed"];
+                }
+            }
+        }
+        
+        
+        
+        
+        function draw() {
+            targetSVG = d3.select("#mySVG");
+            baseline = +targetSVG.attr("height")-200;
+            
+            
+            var axis = targetSVG.append("line")
+                    .attr("x1",200)
+                    .attr("x2",2025)
+                    .attr("y1",baseline)
+                    .attr("y2",baseline)
+                    .attr("stroke-width",2)
+                    .attr("stroke","white");
+                
+        }     
+        
+        
+        
+        
+        function drawRectangles() {
+            var rectangles = targetSVG.selectAll("rect")
+                .data(data);
+            
+            rectangles.enter().append("rect")
+                .attr("x",function(d){return 195 +d["Date Num"]*5;})
+                .attr("height",function(d){return d["Num Killed"]*5;})
+                .attr("y",function(d){return baseline-d["soFar"]*5-3})
+                .attr("width", 5)
+                .on("mouseover",recMouseOver)
+                .on("mouseout",recMouseOut);
+            
+            rectangles.exit().remove();
+                
+            
+           rectangles 
+                .attr("x",function(d){return 195 +d["Date Num"]*5;})
+                .attr("height",function(d){return d["Num Killed"]*5;})
+                .attr("y",function(d){return baseline-d["soFar"]*5-3})
+                .attr("width", 5);
+
+        }
+        
+        function drawCircles() {
+                        
+            var circles = targetSVG.selectAll("circle")
+                .data(sumsData);
+            
+            circles.enter().append("circle")
+                .attr("cx",function(d){ return 195 +d["Date Num"]*5;})
+                .attr("cy",300)
+                .attr("r",function(d){ return 5*Math.log(Math.sqrt(d["attendees"]));})
+                .on("mouseover",circMouseOver)
+                .on("mouseout",circMouseOut)
+                .on("click",function(d){
+                var sel = d3.select(this);
+                sel.moveToBack();
+            });
+            
+            circles.exit().remove();
+            
+            circles.attr("cx",function(d){return 195 +d["Date Num"]*5; })
+                .attr("cy",300)
+                .attr("r",function(d){ return 10*Math.log(Math.sqrt(d["attendees"]));})
+        }
+        
+        function recMouseOver(d,i){
+            d3.select(this)
+                .style("fill","grey");
+            d3.select("#date").text("Date: " + data[i]["Incident Date"]);
+            d3.select("#location").text("Location: " +data[i]["City Or County"]);
+            d3.select("#numDead").text("Deaths: " +data[i]["Num Killed"]);
+            d3.select("#floater")
+                .style("visibility","visible")
+                .style("left", d3.event.pageX + "px");
+        }
+        
+        function recMouseOut(d,i){
+             d3.select(this)
+                .style("fill","")
+                .style("stroke-width","");
+            d3.select("#floater").style("visibility","hidden");
+        }
+        
+        function circMouseOver(d,i){
+            d3.select(this)
+                .style("fill","CornflowerBlue");
+            d3.select("#circDate").text("Date: " +sumsData[i]["date"]);
+            d3.select("#attendees").text("Protestors: " +sumsData[i]["attendees"]);
+            d3.select("#circFloater")
+                .style("visibility","visible")
+                .style("left", d3.event.pageX + "px");
+        }
+        
+        function circMouseOut(d,i){
+            d3.select(this)
+                .style("fill","");
+            d3.select("#circFloater").style("visibility","hidden");
+        }
+        
+         
+        
+        
+        
+    </script>
+</head>
+    
+<body onload = "getData('2017')">
+<svg id="mySVG" width="2200" height="900"> </svg>
+<div id = "legend">
+    <p>
+    <strong>Year:</strong><br /> 
+            <button onclick="getData('2017')">2017</button> 
+            <button onclick="getData('2018')">2018</button> 
+    </p>
+    </div>
+    
+    <div id ="floater">
+        <span id = "date"></span><br />
+        <span id="location"></span><br />
+        <span id="numDead"></span><br />
+    
+    </div>
+    
+    <div id ="circFloater">
+        <span id = "circDate"></span><br />
+        <span id="attendees"></span><br />
+    
+    </div>
+    
+    <h4 id = "header">WHEN DO WE CARE?</h4>
+    <h3 id = "subhead">gun deaths in america</h3>
+
+</body>
+</html>
